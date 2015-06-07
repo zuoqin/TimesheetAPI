@@ -29,6 +29,8 @@ namespace TimeSheetWeb.Controllers
         public List<BusinessLine> BusinessLines;
         public List<BusinessFocus> BusinessFocuces;
         public CalendarData Calendar;
+        public List<EmpProjectDaily> DailyProjects;
+        public EmpHR_DTO EmpHR;
     }
     public class CalendarData
     {
@@ -67,6 +69,8 @@ namespace TimeSheetWeb.Controllers
         [HttpPost]
         public async Task<IHttpActionResult> Login(string user, string password)
         {
+            PropertyInfo[] properties1;
+            PropertyInfo[] properties2;
             using (MD5 md5Hash = MD5.Create())
             {
                 string hash = GetMd5Hash(md5Hash, password);
@@ -129,8 +133,8 @@ namespace TimeSheetWeb.Controllers
 
                     Client_DTO theData = new Client_DTO();
 
-                    PropertyInfo[] properties1 = typeof(Client_DTO).GetProperties();
-                    PropertyInfo[] properties2 = typeof(Client).GetProperties();
+                    properties1 = typeof(Client_DTO).GetProperties();
+                    properties2 = typeof(Client).GetProperties();
 
 
                     foreach (PropertyInfo property1 in properties1)
@@ -163,12 +167,29 @@ namespace TimeSheetWeb.Controllers
 
                     }
                 }
-
+                List<EmpProjectDaily> DailyProjects = await db.EmpDayProjects.Where(e => e.empid == theUser.empid).ToListAsync();
                 ClientData theAllData = new ClientData();
                 theAllData.Clients = theClientDatas;
                 theAllData.BusinessFocuces = theBusinessFocuses;
                 theAllData.BusinessLines = theBusinessLines;
                 theAllData.Calendar = theCalendarData;
+                theAllData.DailyProjects = DailyProjects;
+
+
+
+
+                properties1 = typeof(EmpHR_DTO).GetProperties();
+                properties2 = typeof(EmpHR).GetProperties();
+                EmpHR_DTO theEmphrDto = new EmpHR_DTO();
+
+                foreach (PropertyInfo property1 in properties1)
+                {
+                    PropertyInfo theProperty = Array.Find(properties2, p => p.Name.CompareTo(property1.Name) == 0);
+                    var value = theProperty.GetValue(theEmpHR);
+                    property1.SetValue(theEmphrDto, value);
+                }
+
+                theAllData.EmpHR = theEmphrDto;
                 return Ok(theAllData);
             }
             //return StatusCode(HttpStatusCode.BadRequest);

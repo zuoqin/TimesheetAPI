@@ -47,6 +47,7 @@ namespace TimeSheetWeb.Models
         public System.Data.Entity.DbSet<TimeSheetWeb.Models.UserClient> UserClients { get; set; }
         public System.Data.Entity.DbSet<TimeSheetWeb.Models.ClientProduct> ClientProducts { get; set; }
         public System.Data.Entity.DbSet<TimeSheetWeb.Models.ClientTask> ClientTasks { get; set; }
+        public System.Data.Entity.DbSet<TimeSheetWeb.Models.EmpProjectDaily> EmpDayProjects { get; set; }
 
         public System.Data.Entity.DbSet<TimeSheetWeb.Models.BusinessFocus> BusinessFocuces { get; set; }
         public System.Data.Entity.DbSet<TimeSheetWeb.Models.BusinessLine> BusinessLines { get; set; }

@@ -199,6 +199,8 @@
     <Compile Include="Models\Duty.cs" />
     <Compile Include="Models\EmpCalendar.cs" />
     <Compile Include="Models\EmpHR.cs" />
+    <Compile Include="Models\EmpHR_DTO.cs" />
+    <Compile Include="Models\EmpProjectDaily.cs" />
     <Compile Include="Models\Product.cs" />
     <Compile Include="Models\TimeSheetWebContext.cs" />
     <Compile Include="Models\User.cs" />

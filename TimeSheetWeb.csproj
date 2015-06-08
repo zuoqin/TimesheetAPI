@@ -202,6 +202,7 @@
     <Compile Include="Models\EmpHR_DTO.cs" />
     <Compile Include="Models\EmpProjectDaily.cs" />
     <Compile Include="Models\Product.cs" />
+    <Compile Include="Models\ProjectTran.cs" />
     <Compile Include="Models\TimeSheetWebContext.cs" />
     <Compile Include="Models\User.cs" />
     <Compile Include="Models\UserClient.cs" />

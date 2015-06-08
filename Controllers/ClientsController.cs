@@ -16,6 +16,7 @@ using System.Web.Http;
 using System.Web.Http.Description;
 using TimeSheetWeb.Models;
 using System.Security.Cryptography;
+using Newtonsoft.Json;
 using WebGrease.Css.Ast.Selectors;
 
 
@@ -67,6 +68,45 @@ namespace TimeSheetWeb.Controllers
         }
 
         [HttpPost]
+        [ActionName("update")]
+        public async Task<IHttpActionResult> UpdateUser(string user, string password)
+        {
+            using (MD5 md5Hash = MD5.Create())
+            {
+                string hash = GetMd5Hash(md5Hash, password);
+                User theUser = await db.Users.SingleOrDefaultAsync(b => b.usercode == user);
+                if (theUser == null)
+                {
+                    return NotFound();
+                }
+                if (theUser.userpassword.CompareTo(hash) != 0)
+                {
+                    return StatusCode(HttpStatusCode.Unauthorized);
+                }
+            }
+            string jsonContent = Request.Content.ReadAsStringAsync().Result;
+            List<ProjectTran> theProjects = JsonConvert.DeserializeObject<List<ProjectTran>>(jsonContent);
+            //ProjectTran theProjects = JsonConvert.DeserializeObject<ProjectTran>(jsonContent);
+
+            foreach (var project in theProjects)
+            {
+                if (project.moduser == 0)
+                {
+                    project.moduser = project.empid;
+                }
+                if (project.createuser == 0)
+                {
+                    project.createuser = project.empid;
+                }
+                db.ProjectTrans.Add(project);
+            }
+
+            await db.SaveChangesAsync();
+            return Ok(theProjects);
+        }
+
+        [HttpPost]
+        [ActionName("login")]
         public async Task<IHttpActionResult> Login(string user, string password)
         {
             PropertyInfo[] properties1;
@@ -255,34 +295,34 @@ namespace TimeSheetWeb.Controllers
         }
 
         // POST api/Clients
-        [ResponseType(typeof(Client))]
-        public async Task<IHttpActionResult> PostClient(Client client)
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+        //[ResponseType(typeof(Client))]
+        //public async Task<IHttpActionResult> PostClient(Client client)
+        //{
+        //    if (!ModelState.IsValid)
+        //    {
+        //        return BadRequest(ModelState);
+        //    }
 
-            db.Clients.Add(client);
+        //    db.Clients.Add(client);
 
-            try
-            {
-                await db.SaveChangesAsync();
-            }
-            catch (DbUpdateException)
-            {
-                if (ClientExists(client.seg1code))
-                {
-                    return Conflict();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+        //    try
+        //    {
+        //        await db.SaveChangesAsync();
+        //    }
+        //    catch (DbUpdateException)
+        //    {
+        //        if (ClientExists(client.seg1code))
+        //        {
+        //            return Conflict();
+        //        }
+        //        else
+        //        {
+        //            throw;
+        //        }
+        //    }
 
-            return CreatedAtRoute("DefaultApi", new { id = client.seg1code }, client);
-        }
+        //    return CreatedAtRoute("DefaultApi", new { id = client.seg1code }, client);
+        //}
 
         // DELETE api/Clients/5
         [ResponseType(typeof(Client))]

@@ -51,5 +51,7 @@ namespace TimeSheetWeb.Models
 
         public System.Data.Entity.DbSet<TimeSheetWeb.Models.BusinessFocus> BusinessFocuces { get; set; }
         public System.Data.Entity.DbSet<TimeSheetWeb.Models.BusinessLine> BusinessLines { get; set; }
+        public System.Data.Entity.DbSet<TimeSheetWeb.Models.ProjectTran> ProjectTrans { get; set; }
+        
     }
 }

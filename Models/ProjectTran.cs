@@ -23,7 +23,7 @@ namespace TimeSheetWeb.Models
         public int createuser { get; set; }
         public int moduser { get; set; }
         public Nullable<System.DateTime> moddate { get; set; }
-        public Nullable<System.DateTime> createdate { get; set; }
+        public DateTime createdate { get; set; }
         public int requestid { get; set; }
         public string status { get; set; }
         public string comments { get; set; }

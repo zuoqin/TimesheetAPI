@@ -31,6 +31,12 @@ namespace TimeSheetWeb.Controllers
         public List<BusinessFocus> BusinessFocuces;
         public CalendarData Calendar;
         public List<EmpProjectDaily> DailyProjects;
+        public List<DateTime> WeekEndProjectDates;
+
+        public ClientData()
+        {
+            WeekEndProjectDates = new List<DateTime>();
+        }
         public EmpHR_DTO EmpHR;
     }
     public class CalendarData
@@ -183,11 +189,13 @@ namespace TimeSheetWeb.Controllers
                         var value = theProperty.GetValue(theClient);
                         property1.SetValue(theData, value);
                     }
-
-
-
+                    
                     theData.theTasks = theTasks;
                     theData.theProducts = theProducts;
+
+ 
+
+
                     theClientDatas.Add(theData);
                 }
 
@@ -230,6 +238,22 @@ namespace TimeSheetWeb.Controllers
                 }
 
                 theAllData.EmpHR = theEmphrDto;
+                DateTime dtNow = DateTime.Now;
+                DateTime dt1 = new DateTime(dtNow.Year, 1, 1);
+                DateTime dt2 = new DateTime(dtNow.Year + 1, 1, 1);
+                List<ProjectTran> tmpProjectTrans = await db.ProjectTrans.Where(e => (e.createdate >= dt1 &
+                      e.createdate < dt2
+                      & e.empid == theUser.empid
+                      )
+                      ).ToListAsync();
+                List<ProjectTran> theProjectTrans = tmpProjectTrans.Where(e =>
+                    (e.createdate.DayOfWeek == DayOfWeek.Saturday || e.createdate.DayOfWeek == DayOfWeek.Sunday)
+                    ).ToList();
+                foreach (var project in theProjectTrans)
+                {
+                    theAllData.WeekEndProjectDates.Add(project.createdate);
+                }
+                
                 return Ok(theAllData);
             }
             //return StatusCode(HttpStatusCode.BadRequest);

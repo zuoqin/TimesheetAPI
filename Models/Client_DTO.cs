@@ -23,5 +23,6 @@ namespace TimeSheetWeb.Models
 
         public List<Product> theProducts;
         public List<Duty> theTasks;
+
     }
 }

@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.Entity;
 using System.Data.Entity.Infrastructure;
+using System.DirectoryServices;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -16,12 +17,24 @@ using System.Web.Http;
 using System.Web.Http.Description;
 using TimeSheetWeb.Models;
 using System.Security.Cryptography;
+using System.Web.Configuration;
 using Newtonsoft.Json;
 using WebGrease.Css.Ast.Selectors;
 
 
 namespace TimeSheetWeb.Controllers
 {
+    public class LoginData
+    {
+        public string user;
+        public string password;
+
+        public LoginData()
+        {
+            user = "";
+            password = "";
+        }
+    }
     public class ClientData
     {
         //private TimeSheetWebContext db = new TimeSheetWebContext();
@@ -48,10 +61,42 @@ namespace TimeSheetWeb.Controllers
     }
     public class ClientsController : ApiController
     {
+        //System.Configuration.Configuration rootWebConfig =
+        //        System.Web.Configuration.WebConfigurationManager.OpenWebConfiguration(null);
         private TimeSheetWebContext db = new TimeSheetWebContext();
- 
 
 
+        //private static string domain = "TAKE5";
+
+        public bool LogonValid(string userName, string password)
+        {
+            string domain = WebConfigurationManager.AppSettings["domainname"];
+            //if (WebConfigurationManager.AppSettings["domainname"] != 0)
+            //{
+            //    System.Configuration.KeyValueConfigurationElement domainName =
+            //        rootWebConfig.AppSettings.Settings["domainname"];
+            //    if (domainName != null)
+            //        domain = domainName.ToString();
+            //    else
+            //        domain = "TAKE5";
+            //}
+            DirectoryEntry de = new DirectoryEntry(null, domain +
+              "\\" + userName, password);
+            try
+            {
+                object o = de.NativeObject;
+                DirectorySearcher ds = new DirectorySearcher(de);
+                ds.Filter = "samaccountname=" + userName;
+                ds.PropertiesToLoad.Add("cn");
+                SearchResult sr = ds.FindOne();
+                if (sr == null) throw new Exception();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
         static string GetMd5Hash(MD5 md5Hash, string input)
         {
 
@@ -80,14 +125,33 @@ namespace TimeSheetWeb.Controllers
             using (MD5 md5Hash = MD5.Create())
             {
                 string hash = GetMd5Hash(md5Hash, password);
-                User theUser = await db.Users.SingleOrDefaultAsync(b => b.usercode == user);
+                User theUser = await db.Users.Where(b => b.usercode == user).FirstOrDefaultAsync();
                 if (theUser == null)
                 {
                     return NotFound();
                 }
-                if (theUser.userpassword.CompareTo(hash) != 0)
+                if (WebConfigurationManager.AppSettings["authentication"].ToLower().CompareTo("domain") != 0)
                 {
-                    return StatusCode(HttpStatusCode.Unauthorized);
+                    if (theUser.userpassword.CompareTo(hash) != 0)
+                    {
+                        return StatusCode(HttpStatusCode.Unauthorized);
+                    }
+
+                }
+                else
+                {
+                    if (!LogonValid(user, password))
+                    {
+                        if (!LogonValid(user, password))
+                        {
+                            byte[] data = Convert.FromBase64String(password);
+                            string decodedString = Encoding.UTF8.GetString(data);
+                            if (!LogonValid(user, decodedString))
+                            {
+                                return StatusCode(HttpStatusCode.Unauthorized);
+                            }
+                        }
+                    }
                 }
             }
             string jsonContent = Request.Content.ReadAsStringAsync().Result;
@@ -113,21 +177,49 @@ namespace TimeSheetWeb.Controllers
 
         [HttpPost]
         [ActionName("login")]
-        public async Task<IHttpActionResult> Login(string user, string password)
+        public async Task<IHttpActionResult> Login()
+        {
+            string jsonContent = Request.Content.ReadAsStringAsync().Result;
+            LoginData loginData = JsonConvert.DeserializeObject<LoginData>(jsonContent);
+            
+            IHttpActionResult theResult = await LoginProcedure(loginData.user, loginData.password);
+                
+            return theResult;
+        }
+
+
+        public async Task<IHttpActionResult> LoginProcedure(string user, string password)
         {
             PropertyInfo[] properties1;
             PropertyInfo[] properties2;
             using (MD5 md5Hash = MD5.Create())
             {
                 string hash = GetMd5Hash(md5Hash, password);
-                User theUser = await db.Users.SingleOrDefaultAsync(b => b.usercode == user);
+                User theUser = await db.Users.Where(b => b.usercode == user).FirstOrDefaultAsync();
                 if (theUser == null)
                 {
                     return NotFound();
                 }
-                if (theUser.userpassword.CompareTo(hash) != 0 )
+                if (WebConfigurationManager.AppSettings["authentication"].ToLower().CompareTo("domain") != 0)
                 {
-                    return StatusCode(HttpStatusCode.Unauthorized);
+                    if (theUser.userpassword.CompareTo(hash) != 0)
+                    {
+                        return StatusCode(HttpStatusCode.Unauthorized);
+                    }
+
+                }
+                else
+                {
+                    if (!LogonValid(user, password))
+                    {
+                        byte[] data = Convert.FromBase64String(password);
+                        string decodedString = Encoding.UTF8.GetString(data);
+                        if (!LogonValid(user, decodedString))
+                        {
+                            return StatusCode(HttpStatusCode.Unauthorized);    
+                        }
+                        
+                    }
                 }
 
 
@@ -189,11 +281,11 @@ namespace TimeSheetWeb.Controllers
                         var value = theProperty.GetValue(theClient);
                         property1.SetValue(theData, value);
                     }
-                    
+
                     theData.theTasks = theTasks;
                     theData.theProducts = theProducts;
 
- 
+
 
 
                     theClientDatas.Add(theData);
@@ -234,30 +326,50 @@ namespace TimeSheetWeb.Controllers
                 {
                     PropertyInfo theProperty = Array.Find(properties2, p => p.Name.CompareTo(property1.Name) == 0);
                     var value = theProperty.GetValue(theEmpHR);
+                    if (value == null)
+                    {
+                        if (theProperty.Name == "contractenddate")
+                        {
+                            value = new DateTime(9999, 1, 1);
+                        }
+                        if (theProperty.Name == "contractstartdate")
+                        {
+                            value = new DateTime(9999, 1, 1);
+                        }
+                    }
                     property1.SetValue(theEmphrDto, value);
                 }
 
                 theAllData.EmpHR = theEmphrDto;
                 DateTime dtNow = DateTime.Now;
-                DateTime dt1 = new DateTime(dtNow.Year, 1, 1);
-                DateTime dt2 = new DateTime(dtNow.Year + 1, 1, 1);
+                DateTime dt1 = dtNow.AddDays(-365);
+                DateTime dt2 = dtNow.AddDays(365);
                 List<ProjectTran> tmpProjectTrans = await db.ProjectTrans.Where(e => (e.createdate >= dt1 &
                       e.createdate < dt2
                       & e.empid == theUser.empid
                       )
                       ).ToListAsync();
-                List<ProjectTran> theProjectTrans = tmpProjectTrans.Where(e =>
-                    (e.createdate.DayOfWeek == DayOfWeek.Saturday || e.createdate.DayOfWeek == DayOfWeek.Sunday)
-                    ).ToList();
+                List<ProjectTran> theProjectTrans = tmpProjectTrans;//.Where(e =>
+                //    (e.createdate.DayOfWeek == DayOfWeek.Saturday || e.createdate.DayOfWeek == DayOfWeek.Sunday)
+                //    ).ToList();
                 foreach (var project in theProjectTrans)
                 {
                     theAllData.WeekEndProjectDates.Add(project.createdate);
                 }
-                
+
                 return Ok(theAllData);
             }
             //return StatusCode(HttpStatusCode.BadRequest);
+            
+        }
 
+        [HttpPost]
+        [ActionName("login")]
+        public async Task<IHttpActionResult> Login(string user, string password)
+        {
+            IHttpActionResult theResult = await LoginProcedure(user, password);
+
+            return theResult;
         }
         // GET api/Clients
         public IQueryable<Client> GetClients()

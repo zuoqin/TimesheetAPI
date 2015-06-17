@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.Entity;
 using System.Data.Entity.Infrastructure;
+using System.Diagnostics;
 using System.DirectoryServices;
 using System.IO;
 using System.Linq;
@@ -13,13 +14,14 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 using System.Web.Http.Description;
 using TimeSheetWeb.Models;
-using System.Security.Cryptography;
+
 using System.Web.Configuration;
 using Newtonsoft.Json;
-using WebGrease.Css.Ast.Selectors;
+
 
 
 namespace TimeSheetWeb.Controllers
@@ -34,6 +36,12 @@ namespace TimeSheetWeb.Controllers
             user = "";
             password = "";
         }
+    }
+
+    public class UpdateParams
+    {
+        public List<ProjectTran> data = new List<ProjectTran>();//"";
+        //public List<ProjectTran> data = new List<ProjectTran>();
     }
     public class ClientData
     {
@@ -155,9 +163,58 @@ namespace TimeSheetWeb.Controllers
                 }
             }
             string jsonContent = Request.Content.ReadAsStringAsync().Result;
-            List<ProjectTran> theProjects = JsonConvert.DeserializeObject<List<ProjectTran>>(jsonContent);
-            //ProjectTran theProjects = JsonConvert.DeserializeObject<ProjectTran>(jsonContent);
+            
+            //List<ProjectTran> theProjects = JsonConvert.DeserializeObject<List<ProjectTran>>(jsonContent);
+            //UpdateParams theParams = JsonConvert.DeserializeObject<List<ProjectTran>>(jsonContent);
+            //List<ProjectTran> theProjects = new List<ProjectTran>();//JsonConvert.DeserializeObject<List<ProjectTran>>(jsonContent));
+            jsonContent = jsonContent.Replace("\\\"", "\"");
+            UpdateParams theData;
+            try
+            {
+                theData = JsonConvert.DeserializeObject<UpdateParams>(jsonContent);
+                
+            }
+            catch (Exception exception)
+            {
+                if (exception.Message.Contains("Invalid JavaScript property identifier character: =") ||
+                    exception.Message.Contains("Invalid character after parsing property name")
+                    )
+                {
+                    jsonContent = jsonContent.Replace("=", ":");
+                    theData = JsonConvert.DeserializeObject<UpdateParams>(jsonContent);
+                    //theProjects = JsonConvert.DeserializeObject<List<ProjectTran>>(jsonContent);
+                }
+                else if (exception.Message.Contains("Unexpected character encountered while parsing value: %"))
+                {
+                    jsonContent = HttpContext.Current.Server.UrlDecode(jsonContent);
+                    try
+                    {
+                        theData = JsonConvert.DeserializeObject<UpdateParams>(jsonContent);
+                    }
+                    catch (Exception exception1)
+                    {
 
+                        if (exception1.Message.Contains("Invalid character after parsing property name"))
+                        {
+                            jsonContent = jsonContent.Replace("=", ":");
+                            theData = JsonConvert.DeserializeObject<UpdateParams>(jsonContent);
+                            //theProjects = JsonConvert.DeserializeObject<List<ProjectTran>>(jsonContent);
+                        }
+                        else
+                        {
+                            return StatusCode(HttpStatusCode.NotAcceptable);
+                        }
+                    }
+                    
+                    //theProjects = JsonConvert.DeserializeObject<List<ProjectTran>>(jsonContent);
+                }
+                else
+                {
+                    return StatusCode(HttpStatusCode.NotAcceptable);
+                }
+            }
+            
+            List<ProjectTran> theProjects = theData.data;
             foreach (var project in theProjects)
             {
                 if (project.moduser == 0)
@@ -344,8 +401,8 @@ namespace TimeSheetWeb.Controllers
                 DateTime dtNow = DateTime.Now;
                 DateTime dt1 = dtNow.AddDays(-365);
                 DateTime dt2 = dtNow.AddDays(365);
-                List<ProjectTran> tmpProjectTrans = await db.ProjectTrans.Where(e => (e.createdate >= dt1 &
-                      e.createdate < dt2
+                List<ProjectTran> tmpProjectTrans = await db.ProjectTrans.Where(e => (e.moddate >= dt1 &
+                      e.moddate < dt2
                       & e.empid == theUser.empid
                       )
                       ).ToListAsync();
@@ -354,7 +411,21 @@ namespace TimeSheetWeb.Controllers
                 //    ).ToList();
                 foreach (var project in theProjectTrans)
                 {
-                    theAllData.WeekEndProjectDates.Add(project.createdate);
+                    if (theAllData.WeekEndProjectDates.Where(e => (
+                        e.Day == project.moddate.Day && e.Month == project.moddate.Month && e.Year == project.moddate.Year
+                        )).Count() == 0)
+                    {
+                        DateTime tmpDate = new DateTime(project.moddate.Year, project.moddate.Month, project.moddate.Day);
+
+                        theAllData.WeekEndProjectDates.Add(tmpDate);
+                        
+                    }
+                    else
+                    {
+                        Debug.Print(project.moddate.ToString() + " already in the list of Dates");
+                    }
+                    
+                    
                 }
 
                 return Ok(theAllData);
